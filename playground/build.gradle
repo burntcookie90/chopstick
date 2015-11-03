@@ -28,7 +28,11 @@ dependencies {
 }
 
 chopsticks {
-    folder('src/kotlin/chopsticks') {
-        github 'JakeWharton/kotterknife:src/main/kotlin/butterknife/ButterKnife.kt'
+    local '../ext/ButterKnife.kt'
+
+    destinationDir('src/kotlin/chopsticks') {
+        local '../ext/CalendarExt.kt'
     }
 }
+
+

@@ -7,6 +7,7 @@ import org.gradle.util.*
 import java.io.*
 import java.lang.reflect.Array
 import java.net.*
+import kotlin.test.fail
 
 class ChopstickPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -24,17 +25,31 @@ open class ChopsticksExtension(val project: Project) : Configurable<ChopsticksEx
         ConfigureUtil.configure(cl, chopsticksAction).execute()
         return this
     }
-
 }
 
-class ChopsticksSection(val project: Project, val folder: String = "${project.buildDir.path}/generated/source/chopstick") {
-    val sources = arrayListOf<URL>()
-    val folders = arrayListOf<ChopsticksSection>()
+class ChopsticksSection(val project : Project, val destinationDirectory : String = "${project.buildDir.path}/generated/source/chopstick") {
+    data class LocalItem(val path : String, val destinationDirectory : String)
+    data class RemoteItem(val url : URL, val destinationDirectory : String)
+    val locals = arrayListOf<LocalItem>()
+    val remotes = arrayListOf<RemoteItem>()
+    val customDirs = arrayListOf<ChopsticksSection>()
 
-    fun folder(path: String, configure: Closure<*>) {
-        val folder = ChopsticksSection(project, path)
-        folders.add(folder)
-        project.configure(folder, configure)
+    fun destinationDir(path : String, configure : Closure<*>) {
+        println("Custom destination director")
+        if(path.isNotEmpty()){
+            val dir = ChopsticksSection(project, path)
+            customDirs.add(dir)
+            project.configure(dir, configure)
+        }
+    }
+
+    fun local(path : String) {
+        if(path.isEmpty()){
+            throw IllegalArgumentException("Can't have an empty path!")
+        }
+        else {
+            locals.add(LocalItem(path, destinationDirectory))
+        }
     }
 
     fun github(src: String) {
@@ -50,8 +65,8 @@ class ChopsticksSection(val project: Project, val folder: String = "${project.bu
     fun url(src: Any?) {
         val source: Any? = if (src is Closure<*>) src.call() else src
         when {
-            source is CharSequence -> sources.add(URL(source.toString()))
-            source is URL -> sources.add(source)
+            source is CharSequence -> remotes.add(RemoteItem(URL(source.toString()), destinationDirectory))
+            source is URL -> remotes.add(RemoteItem(source, destinationDirectory))
             source is Collection<*> -> for (sco in source) url(sco)
             source != null && source.javaClass.isArray -> {
                 val len = Array.getLength(source)
@@ -65,15 +80,24 @@ class ChopsticksSection(val project: Project, val folder: String = "${project.bu
 
     fun execute() {
         val client = OkHttpClient()
-        getAllSources().forEach { item ->
-            val (url, folder) = item
-            println("Downloading: '$url' to '$folder'")
-            val fullURL = url.toExternalForm()
+        remotes.forEach(processRemote(client))
+        locals.forEach(processLocal())
+        customDirs.forEach {
+            it.execute()
+        }
+    }
+
+    private fun processRemote(client : OkHttpClient) : (RemoteItem) -> Unit {
+        return {
+            val (url, dest) = it
+            println("Downloading $url to $dest")
+            val fullUrl = url.toExternalForm()
             val path = File(url.path)
-            val downloadTo = File(folder)
-            downloadTo.mkdirs()
-            val file = downloadTo.resolve(path.name)
-            client.execute(fullURL) {
+            val destinationDir = File(dest)
+            destinationDir.mkdirs()
+
+            val file = destinationDir.resolve(path.name)
+            client.execute(fullUrl) {
                 success { response ->
                     response.body().byteStream().copyTo(file.outputStream())
                 }
@@ -84,9 +108,16 @@ class ChopsticksSection(val project: Project, val folder: String = "${project.bu
         }
     }
 
-    data class TransferItem(val url: URL, val folder: String)
-
-    private fun getAllSources(): List<TransferItem> {
-        return sources.map { TransferItem(it, folder) } + folders.flatMap { it.getAllSources() }
+    private fun processLocal() : (LocalItem) -> Unit {
+        return {
+            val (path, dest) = it
+            println("Copying $path to $dest")
+            val sourceFile = File(path)
+            val destDir = File(dest)
+            destDir.mkdirs()
+            val destFile = destDir.resolve(sourceFile.name)
+            sourceFile.copyTo(destFile, false)
+        }
     }
+
 }
