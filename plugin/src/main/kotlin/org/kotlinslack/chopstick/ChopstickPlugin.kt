@@ -3,6 +3,7 @@ package org.kotlinslack.chopstick
 import com.squareup.okhttp.*
 import groovy.lang.*
 import org.gradle.api.*
+import org.gradle.api.logging.LogLevel
 import org.gradle.util.*
 import java.io.*
 import java.lang.reflect.Array
@@ -35,7 +36,6 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     val customDirs = arrayListOf<ChopsticksSection>()
 
     fun destinationDir(path : String, configure : Closure<*>) {
-        println("Custom destination director")
         if(path.isNotEmpty()){
             val dir = ChopsticksSection(project, path)
             customDirs.add(dir)
@@ -44,22 +44,19 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     }
 
     fun local(path : String) {
-        if(path.isEmpty()){
-            throw IllegalArgumentException("Can't have an empty path!")
-        }
-        else {
-            locals.add(LocalItem(path, destinationDirectory))
+        when {
+            path.isEmpty() -> throw IllegalArgumentException("Can't have an empty path!")
+            else -> locals.add(LocalItem(path, destinationDirectory))
         }
     }
 
     fun github(src: String) {
         val parts = src.split(':')
-        if (parts.size < 2)
-            throw IllegalArgumentException("GitHub identifier should include repo, path and an optional hash")
-        if (parts.size == 3)
-            url("https://raw.githubusercontent.com/${parts[0]}/${parts[2]}}/${parts[1]}")
-        else
-            url("https://raw.githubusercontent.com/${parts[0]}/master/${parts[1]}")
+        when {
+            parts.size < 2 -> throw IllegalArgumentException("GitHub identifier should include repo, path and an optional hash")
+            parts.size == 3 -> url("https://raw.githubusercontent.com/${parts[0]}/${parts[2]}}/${parts[1]}")
+            else -> url("https://raw.githubusercontent.com/${parts[0]}/master/${parts[1]}")
+        }
     }
 
     fun url(src: Any?) {
@@ -90,13 +87,15 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     private fun processRemote(client : OkHttpClient) : (RemoteItem) -> Unit {
         return {
             val (url, dest) = it
-            println("Downloading $url to $dest")
             val fullUrl = url.toExternalForm()
             val path = File(url.path)
             val destinationDir = File(dest)
             destinationDir.mkdirs()
 
             val file = destinationDir.resolve(path.name)
+            if(file.exists()){
+                file.delete()
+            }
             client.execute(fullUrl) {
                 success { response ->
                     response.body().byteStream().copyTo(file.outputStream())
@@ -111,11 +110,13 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     private fun processLocal() : (LocalItem) -> Unit {
         return {
             val (path, dest) = it
-            println("Copying $path to $dest")
             val sourceFile = File(path)
             val destDir = File(dest)
             destDir.mkdirs()
             val destFile = destDir.resolve(sourceFile.name)
+            if(destFile.exists()){
+                destFile.delete()
+            }
             sourceFile.copyTo(destFile, false)
         }
     }
