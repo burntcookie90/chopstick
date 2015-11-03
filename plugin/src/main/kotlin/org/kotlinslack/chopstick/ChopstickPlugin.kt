@@ -29,10 +29,8 @@ open class ChopsticksExtension(val project: Project) : Configurable<ChopsticksEx
 }
 
 class ChopsticksSection(val project : Project, val destinationDirectory : String = "${project.buildDir.path}/generated/source/chopstick") {
-    data class LocalItem(val path : String, val destinationDirectory : String)
-    data class RemoteItem(val url : URL, val destinationDirectory : String)
-    val locals = arrayListOf<LocalItem>()
-    val remotes = arrayListOf<RemoteItem>()
+    data class TransferItem(val path : String, val destinationDirectory : String, val isLocal : Boolean = false)
+    val items = arrayListOf<TransferItem>()
     val customDirs = arrayListOf<ChopsticksSection>()
 
     fun destinationDir(path : String, configure : Closure<*>) {
@@ -46,7 +44,7 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     fun local(path : String) {
         when {
             path.isEmpty() -> throw IllegalArgumentException("Can't have an empty path!")
-            else -> locals.add(LocalItem(path, destinationDirectory))
+            else -> items.add(TransferItem(path, destinationDirectory, true))
         }
     }
 
@@ -62,8 +60,8 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     fun url(src: Any?) {
         val source: Any? = if (src is Closure<*>) src.call() else src
         when {
-            source is CharSequence -> remotes.add(RemoteItem(URL(source.toString()), destinationDirectory))
-            source is URL -> remotes.add(RemoteItem(source, destinationDirectory))
+            source is CharSequence -> items.add(TransferItem(source.toString(), destinationDirectory))
+            source is URL -> items.add(TransferItem(source.toExternalForm(), destinationDirectory))
             source is Collection<*> -> for (sco in source) url(sco)
             source != null && source.javaClass.isArray -> {
                 val len = Array.getLength(source)
@@ -77,48 +75,45 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
 
     fun execute() {
         val client = OkHttpClient()
-        remotes.forEach(processRemote(client))
-        locals.forEach(processLocal())
+        items.forEach {
+            when {
+                it.isLocal -> processLocal()(it)
+                else -> processRemote(client)(it)
+            }
+        }
         customDirs.forEach {
             it.execute()
         }
     }
 
-    private fun processRemote(client : OkHttpClient) : (RemoteItem) -> Unit {
-        return {
-            val (url, dest) = it
-            val fullUrl = url.toExternalForm()
-            val path = File(url.path)
-            val destinationDir = File(dest)
-            destinationDir.mkdirs()
+    private fun processRemote(client : OkHttpClient) : (TransferItem) -> Unit = {
+        val (url, dest) = it
+        val fullUrl = url;
+        val path = File(URL(url).path)
+        val destinationDir = File(dest)
+        destinationDir.mkdirs()
 
-            val file = destinationDir.resolve(path.name)
-            if(file.exists()){
-                file.delete()
+        val file = destinationDir.resolve(path.name)
+        if(file.exists()){
+            file.delete()
+        }
+        client.execute(fullUrl) {
+            success { response ->
+                response.body().byteStream().copyTo(file.outputStream())
             }
-            client.execute(fullUrl) {
-                success { response ->
-                    response.body().byteStream().copyTo(file.outputStream())
-                }
-                fail { request, ioException ->
-                    println("Failed: $ioException")
-                }
+            fail { request, ioException ->
+                println("Failed: $ioException")
             }
         }
     }
 
-    private fun processLocal() : (LocalItem) -> Unit {
-        return {
-            val (path, dest) = it
-            val sourceFile = File(path)
-            val destDir = File(dest)
-            destDir.mkdirs()
-            val destFile = destDir.resolve(sourceFile.name)
-            if(destFile.exists()){
-                destFile.delete()
-            }
-            sourceFile.copyTo(destFile, false)
-        }
+    private fun processLocal() : (TransferItem) -> Unit = {
+        val (path, dest) = it
+        val sourceFile = File(path)
+        val destDir = File(dest)
+        destDir.mkdirs()
+        val destFile = destDir.resolve(sourceFile.name)
+        sourceFile.copyTo(destFile, true)
     }
 
 }
