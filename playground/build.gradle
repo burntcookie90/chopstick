@@ -28,18 +28,12 @@ dependencies {
 }
 
 chopsticks {
-    defineCustom("gist", {
-        return "https://gist.githubusercontent.com/" + it+ "/raw/"
-    })
-
+    defineCustom "gist", { "https://gist.githubusercontent.com/" + it + "/raw/" }
     useCustom("gist", "burntcookie90/628166d86b2dc65e3506", "ActivityExt.kt")
-
     local '../local-extensions/ButterKnife.kt'
-
     destinationDir('src/kotlin/chopsticks') {
         local '../local-extensions/CalendarExt.kt'
     }
-
     github 'burntcookie90/Sleep-Cycle-Alarm:mobile/src/main/kotlin/io/dwak/sleepcyclealarm/extension/FragmentActivityExt.kt:5723077'
 }
 
