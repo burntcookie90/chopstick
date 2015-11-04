@@ -32,6 +32,17 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     data class TransferItem(val path : String, val destinationDirectory : String, val isLocal : Boolean = false)
     val items = arrayListOf<TransferItem>()
     val customDirs = arrayListOf<ChopsticksSection>()
+    val customMap = hashMapOf<String, Closure<String>>()
+
+    @JvmOverloads
+    fun defineCustom(name : String, isLocal: Boolean = false, process : Closure<String>){
+        println(name)
+        customMap.put(name, process)
+    }
+
+    fun useCustom(name : String, path : String){
+        items.add(TransferItem(customMap[name]?.call(path) as String, destinationDirectory))
+    }
 
     fun destinationDir(path : String, configure : Closure<*>) {
         if(path.isNotEmpty()){

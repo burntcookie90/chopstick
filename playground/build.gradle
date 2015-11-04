@@ -28,6 +28,12 @@ dependencies {
 }
 
 chopsticks {
+    defineCustom("gist", {
+        return "https://gist.githubusercontent.com/" + it+ "/raw/"
+    })
+
+    useCustom("gist", "burntcookie90/c4081bd68b959b583c84")
+
     local '../local-extensions/ButterKnife.kt'
 
     destinationDir('src/kotlin/chopsticks') {
