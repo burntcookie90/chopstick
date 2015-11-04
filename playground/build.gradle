@@ -28,10 +28,10 @@ dependencies {
 }
 
 chopsticks {
-    local '../ext/ButterKnife.kt'
+    local '../local-extensions/ButterKnife.kt'
 
     destinationDir('src/kotlin/chopsticks') {
-        local '../ext/CalendarExt.kt'
+        local '../local-extensions/CalendarExt.kt'
     }
 
     github 'burntcookie90/Sleep-Cycle-Alarm:mobile/src/main/kotlin/io/dwak/sleepcyclealarm/extension/FragmentActivityExt.kt:5723077'

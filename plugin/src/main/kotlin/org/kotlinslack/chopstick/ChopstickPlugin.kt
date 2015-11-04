@@ -94,9 +94,6 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
         destinationDir.mkdirs()
 
         val file = destinationDir.resolve(path.name)
-        if(file.exists()){
-            file.delete()
-        }
         println(fullUrl)
         client.execute(fullUrl) {
             success { response ->
