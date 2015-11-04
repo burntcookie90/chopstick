@@ -1,14 +1,14 @@
 package org.kotlinslack.chopstick
 
-import com.squareup.okhttp.*
-import groovy.lang.*
-import org.gradle.api.*
-import org.gradle.api.logging.LogLevel
-import org.gradle.util.*
-import java.io.*
+import com.squareup.okhttp.OkHttpClient
+import groovy.lang.Closure
+import org.gradle.api.Plugin
+import org.gradle.api.Project
+import org.gradle.util.Configurable
+import org.gradle.util.ConfigureUtil
+import java.io.File
 import java.lang.reflect.Array
-import java.net.*
-import kotlin.test.fail
+import java.net.URL
 
 class ChopstickPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -39,7 +39,6 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
 
     @JvmOverloads
     fun defineCustom(name : String, isLocal: Boolean = false, process : Closure<String>){
-        println(name)
         customMap.put(name, process)
     }
 
@@ -49,8 +48,8 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
                                            destinationDirectory = destinationDirectory))
 
             else -> items.add(TransferItem(path = customMap[name]?.call(path) as String,
-                                           customFileName = customFileName,
-                                           destinationDirectory = destinationDirectory))
+                                           destinationDirectory = destinationDirectory,
+                                           customFileName = customFileName))
         }
     }
 
