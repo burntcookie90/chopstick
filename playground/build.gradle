@@ -33,6 +33,8 @@ chopsticks {
     destinationDir('src/kotlin/chopsticks') {
         local '../ext/CalendarExt.kt'
     }
+
+    github 'burntcookie90/Sleep-Cycle-Alarm:mobile/src/main/kotlin/io/dwak/sleepcyclealarm/extension/FragmentActivityExt.kt:5723077'
 }
 
 

@@ -52,7 +52,7 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
         val parts = src.split(':')
         when {
             parts.size < 2 -> throw IllegalArgumentException("GitHub identifier should include repo, path and an optional hash")
-            parts.size == 3 -> url("https://raw.githubusercontent.com/${parts[0]}/${parts[2]}}/${parts[1]}")
+            parts.size == 3 -> url("https://raw.githubusercontent.com/${parts[0]}/${parts[2]}/${parts[1]}")
             else -> url("https://raw.githubusercontent.com/${parts[0]}/master/${parts[1]}")
         }
     }
@@ -97,6 +97,7 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
         if(file.exists()){
             file.delete()
         }
+        println(fullUrl)
         client.execute(fullUrl) {
             success { response ->
                 response.body().byteStream().copyTo(file.outputStream())
