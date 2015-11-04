@@ -29,7 +29,10 @@ open class ChopsticksExtension(val project: Project) : Configurable<ChopsticksEx
 }
 
 class ChopsticksSection(val project : Project, val destinationDirectory : String = "${project.buildDir.path}/generated/source/chopstick") {
-    data class TransferItem(val path : String, val destinationDirectory : String, val isLocal : Boolean = false)
+    data class TransferItem(val path : String,
+                            val destinationDirectory : String,
+                            val customFileName : String? = null,
+                            val isLocal : Boolean = false)
     val items = arrayListOf<TransferItem>()
     val customDirs = arrayListOf<ChopsticksSection>()
     val customMap = hashMapOf<String, Closure<String>>()
@@ -40,8 +43,15 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
         customMap.put(name, process)
     }
 
-    fun useCustom(name : String, path : String){
-        items.add(TransferItem(customMap[name]?.call(path) as String, destinationDirectory))
+    fun useCustom(name : String, path : String, customFileName : String? = null){
+        when (customFileName) {
+            null -> items.add(TransferItem(path = customMap[name]?.call(path) as String,
+                                           destinationDirectory = destinationDirectory))
+
+            else -> items.add(TransferItem(path = customMap[name]?.call(path) as String,
+                                           customFileName = customFileName,
+                                           destinationDirectory = destinationDirectory))
+        }
     }
 
     fun destinationDir(path : String, configure : Closure<*>) {
@@ -55,7 +65,9 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     fun local(path : String) {
         when {
             path.isEmpty() -> throw IllegalArgumentException("Can't have an empty path!")
-            else -> items.add(TransferItem(path, destinationDirectory, true))
+            else -> items.add(TransferItem(path = path,
+                                           destinationDirectory = destinationDirectory,
+                                           isLocal = true))
         }
     }
 
@@ -71,8 +83,8 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
     fun url(src: Any?) {
         val source: Any? = if (src is Closure<*>) src.call() else src
         when {
-            source is CharSequence -> items.add(TransferItem(source.toString(), destinationDirectory))
-            source is URL -> items.add(TransferItem(source.toExternalForm(), destinationDirectory))
+            source is CharSequence -> items.add(TransferItem(path = source.toString(), destinationDirectory = destinationDirectory))
+            source is URL -> items.add(TransferItem(path = source.toExternalForm(), destinationDirectory =  destinationDirectory))
             source is Collection<*> -> for (sco in source) url(sco)
             source != null && source.javaClass.isArray -> {
                 val len = Array.getLength(source)
@@ -104,8 +116,7 @@ class ChopsticksSection(val project : Project, val destinationDirectory : String
         val destinationDir = File(dest)
         destinationDir.mkdirs()
 
-        val file = destinationDir.resolve(path.name)
-        println(fullUrl)
+        val file = destinationDir.resolve(it.customFileName?: path.name)
         client.execute(fullUrl) {
             success { response ->
                 response.body().byteStream().copyTo(file.outputStream())
